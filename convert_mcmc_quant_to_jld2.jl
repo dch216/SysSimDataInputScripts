@@ -1,3 +1,5 @@
+@warn "This script has not been updated to account for SysSim's new directory structure."
+
 mcmc_quantiles_filename = "../SysSimData/dr25_koi_mcmc_quant.csv"
 koi_catalog_filename = "../SysSimDataInputs/q1_q17_dr25_koi.csv"
 output_filename = "../SysSimData/q1_q17_dr25_koi.jld2"

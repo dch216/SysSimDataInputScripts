@@ -1,3 +1,6 @@
+@warn "This script was last used prior to Julia v1.0 and will likely need updating."
+@warn "This script has not been updated to account for SysSim's new directory structure."
+
 using JLD
 using DataFrames
 
