@@ -4,7 +4,7 @@ The SysSimDataInputScripts repository should be automatically installed as a sub
 Run scripts/makes.jl from the SysSimData directory (typically named data).
 
 To generate the binary file KeplerMAST_TargetProperties.jld2 from inputs/KeplerMAST_TargetProperties.csv, run
-'julia scripts/make.jl --download-stellar-catalog'.
+'julia scripts/make.jl --make-target-properties'.
 
 To download the CSV version of the stellar catalogs (useful for remaking binary files yourself), you'll want to run
 'julia scripts/make.jl --download-stellar-catalog'.
