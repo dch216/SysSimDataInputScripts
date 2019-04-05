@@ -1,5 +1,11 @@
-using DataFrames,CSV,JLD2
-data = CSV.read("dr25_koi_mcmc_quant.csv")
+mcmc_quantiles_filename = "../SysSimData/dr25_koi_mcmc_quant.csv"
+koi_catalog_filename = "../SysSimDataInputs/q1_q17_dr25_koi.csv"
+output_filename = "../SysSimData/q1_q17_dr25_koi.jld2"
+
+using DataFrames,CSV,Dates,JLD2
+
+# Read MCMC Quantiles and put into dataframe
+data = CSV.read(mcmc_quantiles_filename)
 df = DataFrame(Dict(:kepoi_name=>data[:kepoi_name],
   :depth_mean=>data[:depth_mean],:depth_std=>data[:depth_std],
   :duration_mean=>data[:duration_mean],:duration_std=>data[:duration_std]))
@@ -16,6 +22,8 @@ end
 
 df[:depth_quantiles] =  [depth_quantiles[i,:] for i in 1:size(depth_quantiles,1)]
 df[:duration_quantiles] =  [duration_quantiles[i,:] for i in 1:size(duration_quantiles,1)]
+
+# Interpolate to set upper and lower errorbars
 
 function interpolate(x_in::AbstractArray{T1}, y_in::AbstractArray{T2}, x::T1) where {T1<:Number, T2<:Number}
     @assert x_in[1] <= x <= x_in[2]
@@ -62,14 +70,17 @@ df[:koi_depth_err2] =  interp_quantile_list(depth_quantiles,q_mid,quantile_list=
 df[:koi_duration_err1] = interp_quantile_list(duration_quantiles,q_hi,quantile_list=quantile_list) .-interp_quantile_list(duration_quantiles,q_mid,quantile_list=quantile_list)
 df[:koi_duration_err2] = interp_quantile_list(duration_quantiles,q_mid,quantile_list=quantile_list).-interp_quantile_list(duration_quantiles,q_lo,quantile_list=quantile_list)
 
+# Merge with input KOI catalog
+
 #kois = CSV.read("q1_q17_dr25_koi.csv", header=157, allowmissing=:all)
-koi = CSV.read("../SysSimDataInputs/q1_q17_dr25_koi.csv", comment="#", categorical=0.1)
+koi = CSV.read(koi_catalog_filename, comment="#", categorical=0.1)
 deletecols!(koi,[:koi_depth_err1,:koi_depth_err2,:koi_duration_err1,:koi_duration_err2])
 join(koi,df, on=:kepoi_name)
 
 # TODO: Update planet properties to reflect updated stellar properties from Gaia
 
-@save "q1_q17_dr25_koi.jld2" koi
+# save output to binary file
+@save output_filename koi
 
 # to load
 # using DataFrames, Dates, JLD2, FileIO
