@@ -90,17 +90,17 @@ koi = join(catalog,quantiles_df, on=:kepoi_name)
 koi[:mcmc_good] = trues(size(koi,1))
 
 # If mcmc sample wasn't adequate to provide quantiles, revert to catalog values
-for i in size(quantiles_df,1)
+for i in 1:size(quantiles_df,1)
     if koi[i,:koi_depth] < 0
-        koi[i,:koi_depth] = koi[i,:koi_depth_cat]
-        koi[i,:koi_depth_err1] = koi[i,:koi_depth_err1_cat]
-        koi[i,:koi_depth_err2] = koi[i,:koi_depth_err2_cat]
+        koi[i,:koi_depth] = ismissing(koi[i,:koi_depth_cat]) ? -1 : koi[i,:koi_depth_cat]
+        koi[i,:koi_depth_err1] = ismissing(koi[i,:koi_depth_err1_cat]) ? -1 : koi[i,:koi_depth_err1_cat]
+        koi[i,:koi_depth_err2] = ismissing(koi[i,:koi_depth_err2_cat]) ? -1 : koi[i,:koi_depth_err2_cat]
         koi[i,:mcmc_good] = false
     end
     if koi[i,:koi_duration] < 0
-        koi[i,:koi_duration] = koi[i,:koi_duration_cat]
-        koi[i,:koi_duration_err1] = koi[i,:koi_duration_err1_cat]
-        koi[i,:koi_duration_err2] = koi[i,:koi_duration_err2_cat]
+        koi[i,:koi_duration] = ismissing(koi[i,:koi_duration_cat]) ? -1 : koi[i,:koi_duration_cat]
+        koi[i,:koi_duration_err1] = ismissing(koi[i,:koi_duration_err1_cat]) ? -1 : koi[i,:koi_duration_err1_cat]
+        koi[i,:koi_duration_err2] = ismissing(koi[i,:koi_duration_err2_cat]) ? -1 : koi[i,:koi_duration_err2_cat]
         koi[i,:mcmc_good] = false
     end
 end
