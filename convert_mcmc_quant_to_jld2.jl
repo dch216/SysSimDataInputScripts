@@ -1,10 +1,9 @@
-@warn "This script has not been updated to account for SysSim's new directory structure."
+# Set filenames/path
+mcmc_quantiles_filename = "dr25_koi_mcmc_quant.csv"
+koi_catalog_filename = "inputs/q1_q17_dr25_koi.csv"
+output_filename = "q1_q17_dr25_koi.jld2"
 
-mcmc_quantiles_filename = "../SysSimData/dr25_koi_mcmc_quant.csv"
-koi_catalog_filename = "../SysSimDataInputs/q1_q17_dr25_koi.csv"
-output_filename = "../SysSimData/q1_q17_dr25_koi.jld2"
-
-using DataFrames,CSV,Dates,JLD2
+using DataFrames, CSV, Dates, JLD2
 
 # Read MCMC Quantiles and put into dataframe
 quantiles_data = CSV.read(mcmc_quantiles_filename)
@@ -12,14 +11,20 @@ quantiles_df = DataFrame(Dict(:kepoi_name=>quantiles_data[:kepoi_name],
   :depth_mean=>quantiles_data[:depth_mean],:depth_std=>quantiles_data[:depth_std],
   :duration_mean=>quantiles_data[:duration_mean],:duration_std=>quantiles_data[:duration_std]))
 
+# Convert units to ppm and hours for consistency with DR25 catalog units
+quantiles_df[:depth_mean] .*= 1e6
+quantiles_df[:depth_std] .*= 1e6
+quantiles_df[:duration_mean] .*= 24
+quantiles_df[:duration_std] .*= 24
+
 num_quantiles = 99
 quantile_list = range(1/(num_quantiles+1),stop=num_quantiles/(num_quantiles+1),length=num_quantiles)
 depth_quantiles = Array{Float64,2}(undef,length(quantiles_df[:depth_mean]),num_quantiles)
 duration_quantiles = Array{Float64,2}(undef,length(quantiles_df[:duration_mean]),num_quantiles)
 
 for i in 1:num_quantiles
-  depth_quantiles[:,i] .= quantiles_data[Symbol("depth_q" * string(i))]
-  duration_quantiles[:,i] .= quantiles_data[Symbol("duration_q" * string(i))]
+  depth_quantiles[:,i] .= quantiles_data[Symbol("depth_q" * string(i))] .* 1e6
+  duration_quantiles[:,i] .= quantiles_data[Symbol("duration_q" * string(i))] .* 24
 end
 
 quantiles_df[:depth_quantiles] =  [depth_quantiles[i,:] for i in 1:size(depth_quantiles,1)]
@@ -69,14 +74,15 @@ q_mid = 0.5
 q_lo = 0.5-0.34134
 quantiles_df[:koi_depth] =  interp_quantile_list(depth_quantiles,q_mid,quantile_list=quantile_list)
 quantiles_df[:koi_depth_err1] =  interp_quantile_list(depth_quantiles,q_hi,quantile_list=quantile_list) .-interp_quantile_list(depth_quantiles,q_mid,quantile_list=quantile_list)
-quantiles_df[:koi_depth_err2] =  interp_quantile_list(depth_quantiles,q_mid,quantile_list=quantile_list).-interp_quantile_list(depth_quantiles,q_lo,quantile_list=quantile_list)
+quantiles_df[:koi_depth_err2] =  interp_quantile_list(depth_quantiles,q_lo,quantile_list=quantile_list).-interp_quantile_list(depth_quantiles,q_mid,quantile_list=quantile_list)
 quantiles_df[:koi_duration] =  interp_quantile_list(duration_quantiles,q_mid,quantile_list=quantile_list)
 quantiles_df[:koi_duration_err1] = interp_quantile_list(duration_quantiles,q_hi,quantile_list=quantile_list) .-interp_quantile_list(duration_quantiles,q_mid,quantile_list=quantile_list)
-quantiles_df[:koi_duration_err2] = interp_quantile_list(duration_quantiles,q_mid,quantile_list=quantile_list).-interp_quantile_list(duration_quantiles,q_lo,quantile_list=quantile_list)
+quantiles_df[:koi_duration_err2] = interp_quantile_list(duration_quantiles,q_lo,quantile_list=quantile_list).-interp_quantile_list(duration_quantiles,q_mid,quantile_list=quantile_list)
 
 # Merge with input KOI catalog
 #kois = CSV.read("q1_q17_dr25_koi.csv", header=157, allowmissing=:all)
 catalog = CSV.read(koi_catalog_filename, comment="#", categorical=0.1)
+#catalog = CSV.read(koi_catalog_filename, comment="#")
 rename!(catalog, [:koi_depth=>:koi_depth_cat,:koi_duration=>:koi_duration_cat])
 rename!(catalog, [:koi_depth_err1=>:koi_depth_err1_cat,:koi_depth_err2=>:koi_depth_err2_cat,:koi_duration_err1=>:koi_duration_err1_cat,:koi_duration_err2=>:koi_duration_err2_cat])
 #deletecols!(koi,[:koi_depth_err1,:koi_depth_err2,:koi_duration_err1,:koi_duration_err2])
@@ -84,17 +90,17 @@ koi = join(catalog,quantiles_df, on=:kepoi_name)
 koi[:mcmc_good] = trues(size(koi,1))
 
 # If mcmc sample wasn't adequate to provide quantiles, revert to catalog values
-for i in size(quantiles_df,1)
+for i in 1:size(quantiles_df,1)
     if koi[i,:koi_depth] < 0
-        koi[i,:koi_depth] = koi[i,:koi_depth_cat]
-        koi[i,:koi_depth_err1] = koi[i,:koi_depth_err1_cat]
-        koi[i,:koi_depth_err2] = koi[i,:koi_depth_err2_cat]
+        koi[i,:koi_depth] = ismissing(koi[i,:koi_depth_cat]) ? -1 : koi[i,:koi_depth_cat]
+        koi[i,:koi_depth_err1] = ismissing(koi[i,:koi_depth_err1_cat]) ? -1 : koi[i,:koi_depth_err1_cat]
+        koi[i,:koi_depth_err2] = ismissing(koi[i,:koi_depth_err2_cat]) ? -1 : koi[i,:koi_depth_err2_cat]
         koi[i,:mcmc_good] = false
     end
     if koi[i,:koi_duration] < 0
-        koi[i,:koi_duration] = koi[i,:koi_duration_cat]
-        koi[i,:koi_duration_err1] = koi[i,:koi_duration_err1_cat]
-        koi[i,:koi_duration_err2] = koi[i,:koi_duration_err2_cat]
+        koi[i,:koi_duration] = ismissing(koi[i,:koi_duration_cat]) ? -1 : koi[i,:koi_duration_cat]
+        koi[i,:koi_duration_err1] = ismissing(koi[i,:koi_duration_err1_cat]) ? -1 : koi[i,:koi_duration_err1_cat]
+        koi[i,:koi_duration_err2] = ismissing(koi[i,:koi_duration_err2_cat]) ? -1 : koi[i,:koi_duration_err2_cat]
         koi[i,:mcmc_good] = false
     end
 end
